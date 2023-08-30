@@ -52,6 +52,7 @@ NexPage sala = NexPage(3, 0, "sala");
 NexPage quarto = NexPage(4, 0, "quarto");
 NexPage gourmet = NexPage(5, 0, "gourmet");
 NexPage escritorio = NexPage(6, 0, "escritorio");
+NexPage configPage = NexPage(9, 0, "config");
 
 NexText        statusWifiText = NexText(0, 3, "t0");
 NexText        hora = NexText(2, 3, "t1");
@@ -68,6 +69,7 @@ NexDSButton    ledGourmet        = NexDSButton(5, 3, "b1");
 NexDSButton    arandelaGourmet        = NexDSButton(5, 5, "b2");
 NexDSButton    piscina         = NexDSButton(5, 6, "b3");
 NexDSButton    som         = NexDSButton(5, 7, "b4");
+NexDSButton    reset         = NexDSButton(9, 1, "b0");
 
 
 //Lista dos objetos que podem enviar comandos ao Arduino (para o Arduino ficar ouvindo no Loop)
@@ -86,6 +88,7 @@ NexTouch *nex_listen_list[] =
     &arandelaGourmet,
     &piscina,
     &som,
+    &reset,
     NULL
 };
 
@@ -147,7 +150,7 @@ String valorReq;
 void setup() {
   
   nexInit();
-
+  statusWifiText.setText("Conectando");
   EEPROM.begin(EEPROM_SIZE);
   rele1State = EEPROM.read(0);
   rele2State = EEPROM.read(1);
@@ -204,7 +207,7 @@ void setup() {
   }
 
   WiFiManager wifiManager;
-
+  //wifiManager.setDebugOutput(false);
 
   wifiManager.setSaveConfigCallback(saveConfigCallback);      //salva a configuração recebida
   IPAddress _ip, _gw, _sn;                                    //salvar IP
@@ -217,7 +220,7 @@ void setup() {
 
   wifiManager.setMinimumSignalQuality();                        //confiura qualidade minima de sinal do wifi padrão 8%
   
-  if (!wifiManager.autoConnect("AlexandreDev-Device-Quarto", "91906245")) //verififcar se o wifi se conectou
+  if (!wifiManager.autoConnect("AlexandreDev-NSPanell", "91906245")) //verififcar se o wifi se conectou
   {
     delay(3000);
     ESP.restart();                                               //reinicia o ESP caso não conecte em nenhum rede
@@ -284,16 +287,6 @@ void setup() {
   
    Automacao.begin(AUTOMACAO_HOST);
  
- 
-      while (WiFi.status() != WL_CONNECTED)
-  {
-      digitalWrite(ledWifi, HIGH);
-      delay(500);
-      digitalWrite(ledWifi, LOW);
-      delay(500);   
-  }
-
-
     long tme = millis();
 
     timer = timerBegin(0, 80, true); //timerID 0, div 80
@@ -318,6 +311,7 @@ void setup() {
   arandelaGourmet.attachPush(arandelaGourmetPushCallback, &arandelaGourmet);
   piscina.attachPush(piscinaPushCallback, &piscina);
   som.attachPush(somPushCallback, &som);
+  reset.attachPush(resetPushCallback, &reset);
   
   statusWifiText.setText("Conectado");
 
@@ -330,7 +324,7 @@ void loop() {
 
   WiFiManager wifiManager;
   server.handleClient();   
-
+  
   
   timerWrite(timer, 0); //reseta o temporizador (alimenta o watchdog) 
   long tme = millis(); //tempo inicial do loop
@@ -490,6 +484,15 @@ void somPushCallback(void *ptr){
    delay(100);
     timerWrite(timer, 0);
 }
-
+void resetPushCallback(void *ptr){
+  timerWrite(timer, 0);
+  statusWifiText.setText("Reiniciando");
+  WiFiManager wifiManager;
+  server.handleClient();   
+   wifiManager.resetSettings();    
+   delay(1000);
+   ESP.restart(); 
+   delay(100);  
+}
 //http://192.168.0.95/Controle?Rele1=on
 //http://192.168.0.95/Controle?ResetEsp=on
